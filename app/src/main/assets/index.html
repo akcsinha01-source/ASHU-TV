@@ -562,9 +562,10 @@
                 !/^aaj\s*tak\s*\(\s*1080p\s*\)$/i.test(c.name.trim())
             );
 
-            // Category-wise curated ordering: only channels present in the playlist are promoted.
-            // This is a preference order, not a live quality/rating measurement.
+            // Category-wise curated ordering: verified-priority channels are listed first when present.
+            // Education: DD Kisan and Gyan Darshan first; other Education streams remain after them.
             const topCategoryOrder = {
+                'Education': ['dd kisan', 'gyan darshan'],
                 'News': ['aaj tak hd(1080p)', 'abp news', 'ndtv india', 'india tv', 'zee news', 'news18 india', 'republic bharat'],
                 'Bhakti': ['aastha', 'sanskar', 'sadhna', 'ishwar tv', 'divya'],
                 'Cinema': ['star gold', 'zee cinema', 'sony max', 'colors cineplex', '&pictures', 'b4u movies', 'movies now', 'star gold 2'],
@@ -579,8 +580,8 @@
 
             // 2. Exact Top Kids Channels Ordering
             const topKidsOrder = [
-                'wow kids',
                 'the jungle book',
+                'wow kids',
                 'green gold tv',
                 'epic kids digital',
                 'disney junior',
@@ -594,7 +595,7 @@
                 let nameLow = c.name.toLowerCase();
                 
                 // Identify if channel is for Kids
-                if (c.category === 'Kids' || nameLow.includes('kids') || nameLow.includes('cartoon') || nameLow.includes('animation')) {
+                if (c.category === 'Kids' || nameLow.includes('the jungle book') || nameLow.includes('jungle book') || nameLow.includes('wow kids') || nameLow.includes('kids') || nameLow.includes('cartoon') || nameLow.includes('animation')) {
                     c.category = 'Kids';
                     
                     // Check if it belongs to the top priority list
@@ -617,11 +618,31 @@
             otherKids = otherKids.filter(c => !c.name.toLowerCase().includes('discovery kids'));
             groupedChannels['Kids'] = [...topKidsGroups.flat(), ...otherKids, ...discoveryKids];
 
+            // Enforce Kids order explicitly by channel name after grouping:
+            // The Jungle Book first, Wow Kids immediately after it, Discovery Kids last.
+            if (groupedChannels['Kids']) {
+                const kids = groupedChannels['Kids'];
+                const isJungleBook = c => /the\s*jungle\s*book|jungle\s*book/i.test(c.name);
+                const isWowKids = c => /wow\s*kids/i.test(c.name);
+                const isDiscoveryKids = c => /discovery\s*kids/i.test(c.name);
+                const jungle = kids.filter(isJungleBook);
+                const wow = kids.filter(c => !isJungleBook(c) && isWowKids(c));
+                const discovery = kids.filter(isDiscoveryKids);
+                const rest = kids.filter(c => !isJungleBook(c) && !isWowKids(c) && !isDiscoveryKids(c));
+                groupedChannels['Kids'] = [...jungle, ...wow, ...rest, ...discovery];
+            }
+
             Object.entries(topCategoryOrder).forEach(([category, priorities]) => {
                 if (!groupedChannels[category]) return;
                 const rank = (channel) => {
-                    const name = channel.name.toLowerCase();
-                    const index = priorities.findIndex(keyword => name.includes(keyword));
+                    const name = channel.name.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+                    if (category === 'Education') {
+                        if (/\bdd\s*kisan\b/.test(name)) return 0;
+                        // Only the standard Gyan Darshan entry gets priority; HD/alternate versions stay below.
+                        if (/gyan\s*darshan/.test(name) && !/\bhd\b/.test(name) && !/e\s*vidya|evidya/.test(name)) return 1;
+                        return 2;
+                    }
+                    const index = priorities.findIndex(keyword => channel.name.toLowerCase().includes(keyword));
                     return index < 0 ? priorities.length : index;
                 };
                 groupedChannels[category].sort((a, b) => rank(a) - rank(b));
