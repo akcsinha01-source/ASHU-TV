@@ -51,7 +51,7 @@
         }
         @media (orientation: landscape) {
             #video-container { inset: 0; width: 100vw; height: 100vh; height: 100dvh; }
-            #video-player { width: 100%; height: 100%; object-fit: contain; }
+            #video-player { width: 100%; height: 100%; object-fit: cover; }
         }
         
         video { 
@@ -208,7 +208,7 @@
         /* Mobile-first touch layout */
         html, body { width:100%; height:100%; height:100dvh; touch-action: manipulation; }
         button, .tv-item, .control-btn, #quality-menu > div { cursor:pointer; -webkit-tap-highlight-color:transparent; user-select:none; }
-        #video-player { object-fit:contain; background:#000; }
+        #video-player { object-fit:cover !important; background:#000; }
         /* Immersive fullscreen player on phones */
         body.player-fullscreen,
         body.player-fullscreen #video-container,
@@ -221,7 +221,7 @@
         body.player-fullscreen #video-player,
         #video-container:fullscreen #video-player,
         #video-container:-webkit-full-screen #video-player {
-            width:100% !important; height:100% !important; object-fit:contain !important;
+            width:100% !important; height:100% !important; object-fit:cover !important;
         }
         #controls-bar { z-index:30; }
         #ctrl-fullscreen { background:rgba(255,255,255,.16); }
@@ -301,7 +301,7 @@
         html, body { width:100%; height:100%; overflow:hidden; background:#000; }
         body { cursor:default; }
         #video-container { position:fixed; inset:0; width:100vw; height:100vh; height:100dvh; }
-        #video-player { object-fit:contain; }
+        #video-player { object-fit:cover !important; }
         #always-menu-btn {
             position:fixed !important; left:34px !important; top:24px !important;
             transform:none !important; width:64px !important; height:76px !important;
@@ -557,10 +557,15 @@
                 if (!seen.has(c.url)) { seen.add(c.url); uniqueChannels.push(c); }
             });
 
+            // Remove the non-working Aaj Tak (1080p) entry, retaining Aaj Tak HD (1080P).
+            uniqueChannels = uniqueChannels.filter(c =>
+                !/^aaj\s*tak\s*\(\s*1080p\s*\)$/i.test(c.name.trim())
+            );
+
             // Category-wise curated ordering: only channels present in the playlist are promoted.
             // This is a preference order, not a live quality/rating measurement.
             const topCategoryOrder = {
-                'News': ['aaj tak', 'abp news', 'ndtv india', 'india tv', 'zee news', 'news18 india', 'republic bharat'],
+                'News': ['aaj tak hd(1080p)', 'abp news', 'ndtv india', 'india tv', 'zee news', 'news18 india', 'republic bharat'],
                 'Bhakti': ['aastha', 'sanskar', 'sadhna', 'ishwar tv', 'divya'],
                 'Cinema': ['star gold', 'zee cinema', 'sony max', 'colors cineplex', '&pictures', 'b4u movies', 'movies now', 'star gold 2'],
                 'Entertainment': ['star plus', 'sony sab', 'zee tv', 'colors', 'sony entertainment', 'dangal', '&tv', 'unique tv'],
@@ -574,7 +579,6 @@
 
             // 2. Exact Top Kids Channels Ordering
             const topKidsOrder = [
-                'discovery kids',
                 'wow kids',
                 'the jungle book',
                 'green gold tv',
@@ -608,7 +612,10 @@
             });
 
             // Combine the strictly ordered kids channels at the top, followed by the rest
-            groupedChannels['Kids'] = [...topKidsGroups.flat(), ...otherKids];
+            // Keep Discovery Kids at the very end of the Kids category.
+            const discoveryKids = otherKids.filter(c => c.name.toLowerCase().includes('discovery kids'));
+            otherKids = otherKids.filter(c => !c.name.toLowerCase().includes('discovery kids'));
+            groupedChannels['Kids'] = [...topKidsGroups.flat(), ...otherKids, ...discoveryKids];
 
             Object.entries(topCategoryOrder).forEach(([category, priorities]) => {
                 if (!groupedChannels[category]) return;
